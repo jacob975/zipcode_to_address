@@ -192,7 +192,11 @@ def normalize_zip(value: str) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Taiwan ZIP to address reader")
-    parser.add_argument("zip_code", help="3, 5, or 6-digit Taiwan postal code")
+    parser.add_argument(
+        "zip_codes",
+        nargs="+",
+        help="One or more 3, 5, or 6-digit Taiwan postal codes",
+    )
     parser.add_argument("--csv", help="Path to CSV file with zip,address", default="data/tw_zip_sample.csv")
     parser.add_argument("--limit", type=int, default=20, help="Max results (default: 20)")
     parser.add_argument(
@@ -234,27 +238,46 @@ def main() -> None:
         provider = NominatimProvider(timeout=args.timeout)
 
     service = LookupService(primary=provider, fallback=fallback)
-    results = service.lookup(args.zip_code, limit=args.limit)
+    grouped_results: List[tuple[str, List[LookupResult]]] = []
+    for zip_code in args.zip_codes:
+        grouped_results.append((zip_code, service.lookup(zip_code, limit=args.limit)))
 
     if args.json:
         payload = [
             {
-                "zip": r.zip_code,
-                "address": r.address,
-                "provider": r.provider,
-                "source": r.source,
+                "input_zip": query_zip,
+                "results": [
+                    {
+                        "zip": r.zip_code,
+                        "address": r.address,
+                        "provider": r.provider,
+                        "source": r.source,
+                    }
+                    for r in rows
+                ],
             }
-            for r in results
+            for query_zip, rows in grouped_results
         ]
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
 
-    if not results:
+    if not any(rows for _, rows in grouped_results):
         print("No matched address")
         return
 
-    for idx, row in enumerate(results, start=1):
-        print(f"{idx:02d}. [{row.provider}/{row.source}] {row.zip_code} {row.address}")
+    show_heading = len(grouped_results) > 1
+    for query_zip, rows in grouped_results:
+        if show_heading:
+            print(f"Input ZIP: {query_zip}")
+
+        if not rows:
+            print("No matched address")
+        else:
+            for idx, row in enumerate(rows, start=1):
+                print(f"{idx:02d}. [{row.provider}/{row.source}] {row.zip_code} {row.address}")
+
+        if show_heading:
+            print()
 
 
 if __name__ == "__main__":

@@ -24,19 +24,19 @@ Default mode is `auto`:
 - fallback: Nominatim API (OpenStreetMap)
 
 ```bash
-python3 taiwan_zip_reader.py --csv data/tw_zip_sample.csv 100
-python3 taiwan_zip_reader.py --csv data/tw_zip_sample.csv 10058
-python3 taiwan_zip_reader.py --csv data/tw_zip_sample.csv 100581
+python3 taiwan_zip_reader.py 100
+python3 taiwan_zip_reader.py  10058
+python3 taiwan_zip_reader.py  100581
 ```
 
 Provider modes:
 
 ```bash
 # Local CSV only
-python3 taiwan_zip_reader.py --provider local --csv data/tw_zip_sample.csv 100
+python3 taiwan_zip_reader.py --provider local 100
 
 # Auto: local first, fallback to Nominatim if no local match
-python3 taiwan_zip_reader.py --provider auto --csv data/tw_zip_sample.csv 999
+python3 taiwan_zip_reader.py --provider auto 999
 
 # Nominatim only (no CSV required)
 python3 taiwan_zip_reader.py --provider nominatim 100
@@ -45,7 +45,7 @@ python3 taiwan_zip_reader.py --provider nominatim 100
 JSON output:
 
 ```bash
-python3 taiwan_zip_reader.py --csv data/tw_zip_sample.csv 100 --json
+python3 taiwan_zip_reader.py 100 --json
 ```
 
 JSON fields are unified across providers:
