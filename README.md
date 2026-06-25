@@ -25,8 +25,8 @@ Default mode is `auto`:
 
 ```bash
 python3 taiwan_zip_reader.py 100
-python3 taiwan_zip_reader.py  10058
-python3 taiwan_zip_reader.py  100581
+python3 taiwan_zip_reader.py 10058
+python3 taiwan_zip_reader.py 100581
 ```
 
 Provider modes:
@@ -61,5 +61,5 @@ Use official open data from Chunghwa Post (Taiwan Post), then convert to `zip,ad
 - Input can include separators/spaces; non-digit characters are removed automatically.
 - Input must resolve to exactly `3`, `5`, or `6` digits.
 - For 3-digit lookup, multiple addresses may be returned, so you can refine with 5/6 digits.
-- `--csv` is required for `--provider local` or `--provider auto`.
+- The default provider is `--auto`.
 - Nominatim is an external service; network availability and usage limits apply.
