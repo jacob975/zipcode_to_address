@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Protocol
@@ -170,6 +171,67 @@ class NominatimProvider:
         return results
 
 
+class GoogleMapsProvider:
+    name = "google_maps"
+    endpoint = "https://maps.googleapis.com/maps/api/geocode/json"
+
+    def __init__(self, api_key: str, timeout: int = 10) -> None:
+        self.api_key = api_key
+        self.timeout = timeout
+
+    def lookup(self, zip_code: str, limit: int = 20) -> List[LookupResult]:
+        code = normalize_zip(zip_code)
+        if len(code) not in {3, 5, 6}:
+            raise ValueError("Zip code must be 3, 5, or 6 digits")
+
+        params = {
+            "address": code,
+            "components": f"country:TW|postal_code:{code}",
+            "region": "tw",
+            "language": "zh-TW",
+            "key": self.api_key,
+        }
+        url = f"{self.endpoint}?{urlencode(params)}"
+        request = Request(
+            url,
+            headers={
+                "User-Agent": "taiwan-zip-reader/1.0 (zipcode lookup utility)",
+                "Accept": "application/json",
+            },
+        )
+
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (URLError, HTTPError) as exc:
+            raise RuntimeError(f"Google Maps request failed: {exc}") from exc
+
+        status = str(payload.get("status", ""))
+        if status == "ZERO_RESULTS":
+            return []
+        if status != "OK":
+            err = str(payload.get("error_message", "")).strip()
+            detail = f": {err}" if err else ""
+            raise RuntimeError(f"Google Maps API error: {status}{detail}")
+
+        rows = payload.get("results", [])
+        results: List[LookupResult] = []
+        for row in rows[:limit]:
+            formatted = str(row.get("formatted_address", "")).strip()
+            if not formatted:
+                continue
+            results.append(
+                LookupResult(
+                    zip_code=code,
+                    address=formatted,
+                    provider=self.name,
+                    source="api",
+                )
+            )
+
+        return results
+
+
 class LookupService:
     def __init__(self, primary: ZipProvider, fallback: ZipProvider | None = None) -> None:
         self.primary = primary
@@ -201,9 +263,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=20, help="Max results (default: 20)")
     parser.add_argument(
         "--provider",
-        choices=["auto", "local", "nominatim"],
+        choices=["auto", "local", "nominatim", "google"],
         default="auto",
         help="Lookup provider. auto=local with nominatim fallback (default: auto)",
+    )
+    parser.add_argument(
+        "--google-api-key",
+        help="Google Maps API key (or set GOOGLE_MAPS_API_KEY env var)",
     )
     parser.add_argument(
         "--timeout",
@@ -234,8 +300,16 @@ def main() -> None:
         else:
             provider = local
             fallback = NominatimProvider(timeout=args.timeout)
-    else:
+    elif args.provider == "nominatim":
         provider = NominatimProvider(timeout=args.timeout)
+    elif args.provider == "google":
+        api_key = args.google_api_key or os.getenv("GOOGLE_MAPS_API_KEY", "")
+        if not api_key:
+            raise ValueError("Google provider requires --google-api-key or GOOGLE_MAPS_API_KEY")
+        print("I am going to use Google Maps API")
+        provider = GoogleMapsProvider(api_key=api_key, timeout=args.timeout)
+    else:
+        raise ValueError(f"Unknown provider: {args.provider}")
 
     service = LookupService(primary=provider, fallback=fallback)
     grouped_results: List[tuple[str, List[LookupResult]]] = []
