@@ -193,7 +193,7 @@ def normalize_zip(value: str) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Taiwan ZIP to address reader")
     parser.add_argument("zip_code", help="3, 5, or 6-digit Taiwan postal code")
-    parser.add_argument("--csv", help="Path to CSV file with zip,address")
+    parser.add_argument("--csv", help="Path to CSV file with zip,address", default="data/tw_zip_sample.csv")
     parser.add_argument("--limit", type=int, default=20, help="Max results (default: 20)")
     parser.add_argument(
         "--provider",
